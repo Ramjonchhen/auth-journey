@@ -23,7 +23,7 @@ breaking them intentionally to understand vulnerabilities, then fixing them.
 ## Step Breakdown
 
 ### Step 1: Simple API (No Auth)
-**Commit:** `c89e7f0` (See git log)
+**Commit:** `eba59f47` (See git log)
 
 **What You'll Learn:**
 - How a basic Express API works
@@ -46,7 +46,7 @@ Balance data should be protected. Anyone can see it.
 ---
 
 ### Step 2: Session Auth (Unsigned) ← YOU ARE HERE
-**Commit:** `8d39857` (Check latest)
+**Commit:** `aa38d1d84`
 
 **What You'll Learn:**
 - How sessions work
