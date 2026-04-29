@@ -1,5 +1,3 @@
-const crypto = require('crypto');
-
 const express = require("express");
 const authRoutes = express.Router();
 
@@ -26,7 +24,7 @@ authRoutes.post("/login", (req, res) => {
     }
 
     // for successfull login creating user session
-    const sessionId = crypto.randomBytes(16).toString('hex');
+    const sessionId = Object.keys(serverSession).length + 1;
     serverSession[sessionId] = {
         userId: user.id,
         username: user.username,
