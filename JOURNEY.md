@@ -7,7 +7,7 @@ breaking them intentionally to understand vulnerabilities, then fixing them.
 
 ### For Learning
 1. Read the **Step Overview** below
-2. Checkout the branch for that step: `git checkout step-2-sessions`
+2. Check out the branch for that step: `git checkout step-2-sessions`
 3. Read the **What You'll Learn** section
 4. Try the **Exploit** section (yes, break it!)
 5. Understand why it fails
@@ -52,40 +52,136 @@ Balance data should be protected. Anyone can see it.
 - How sessions work
 - In-memory session storage
 - Middleware for protecting routes
-- Why random sessionIds aren't enough alone
+- How an unsigned session is vulnerable & how it can be exploited
 
 **Code:**
-- `/api/auth/login` - Creates session
-- Middleware validates sessionId
+- `/api/auth/login` - Creates a server-side in-memory session
+- Middleware validates the sessionId
 - `/api/user/balance` - Protected route
 
 **How Sessions Work:**
-1. Login → Get random sessionId
+1. Login → Get random sequential sessionId ( Sequential SessionId like 1,2,3..)
 2. Include sessionId in header → Access protected routes
 3. Without sessionId → 401 error
 
 **Testing:**
-\`\`\`bash
-# 1. Login and get sessionId
+1. Log in and get the sessionId
+```bash
 curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"user_1","password":"password_1"}'
+  -H "Content-Type: application/json" \
+  -d '{"username":"user_1","password":"password_1"}'
+```
 
-# Response: {"sessionId":"abc123..."}
+Response: {"sessionId": "1 ( or other linear sequential sessionId)"}
 
-# 2. Use sessionId to access protected route
+2. Use the sessionId to access the protected route
+```
 curl http://localhost:3000/api/user/balance \
-  -H "x-session-id: abc123..."
+  -H "x-session-id: 1"
+```
 
-# 3. Without sessionId, you get error
-curl http://localhost:3000/api/user/balance
-# Response: {"error":"Not authenticated"}
-\`\`\`
+3. Without sessionId, you get error
+```
+curl http://localhost:3000/api/user/balance 
+```
+ Response: {"error":"Not authenticated"}
 
-**The Vulnerability:**
-Even though sessionId is random, it's **UNSIGNED**.
-If someone knew another valid sessionId, they could use it.
-SessionIds can be guessed (statistically small but possible).
+### Using Linear Sequential ID Instead of Random Secure SessionID for Unsigned Sesisons
+
+A quick note:  If you see the commit history through git log, you would see we switched to a linear sequential sessionId for the vulnerability demonstration.
+
+We switched from secure random sessionId like: 9b6b654bd3456e95c4ca56589fc8e57e to linear sequential ID like 1,2,3. The reason will be explained below.
+
+### The Vulnerability on Step2 & How to Exploit Step2 Solution?
+
+Consider this scenario with two users: user_1 & user_2 ( you can find user credentials on the backend/constants.js ). user_1 is wanna be hacker and wants to exploit the system, user_2 is a simple user logging in to the platform.
+
+user_1 genuinely logs in as a user by calling the login API:
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \                    
+  -H "Content-Type: application/json" \
+  -d '{"username":"user_1","password":"password_1"}'
+```
+Response: {"sessionId":1}
+
+Now the user_1 calls the balance API with the sessionId provided.
+
+```bash
+curl http://localhost:3000/api/user/balance \                           
+  -H "x-session-id: 1"
+```
+Response: {"balance":5000, "currency": "USD"}
+
+user_1, who wants to exploit the system, thinks: what if I change the x-session-id on the balance API call, what will happen? If I change the sessionId, can I see other users’ balances? Is the balance API restricted to a particular user only? Can I find an exploit here?
+
+The balance API only needs sessionId to provide the balance. The user must only guess what the next sessionId can be. For this, the user_1 can create fake user accounts and might log in through them and see the sessionId received. 
+
+If they received the same kind of linear sessionId like 2,3.. on other login attempts, then the pattern of sessionId becomes predictable. The user can just try random linear sessionId, on the balance endpoint.
+
+This is the reason we switched to a linear sequential ID for Step 2, because it gives us an environment of predictability and a chance to try an exploit. If we had a random sessionId like: 9b6b654bd3456e95c4ca56589fc8e57f, it would be really hard to guess the next one.
+
+The user_1 for secure sessionId may try to tweak it by: 9b6b654bd3456e95c4ca56589fc8e57g something, but finding an active sessionId present on the server is next to impossible. But linear sequential ID gives us a chance to try the exploit, the user can try various sessionId like 2,3… This is the reason why we switched back to linear sequential ID.
+
+Now let’s get back to the exploit experiment, user_1 thinks to try out a new sessionId on the balance endpoint: 
+
+```bash
+curl http://localhost:3000/api/user/balance -H "x-session-id: 2"
+```
+
+Any guess what will happen? 
+
+Let me tell you what will happen if you look at the codebase balance API ( backend/routes/user.js ), there is a validateSession middleware for protecting the balance API.
+
+Its job is to check whether the request contains the x-session-id header or not. If the header is not present, it throws an error; if the header is present, the middleware validation passes. And the balance API returns the balance of the user linked to the provided sessionId. 
+
+On the user_1 calling the balance API with sessionId:2, if the server session has a record with an ID of 2, it sends the balance of that session user; if the sessionId is not present, it throws an error.
+
+Just by passing sessionId we can access other session resources, this is vulnerability on the system and let's exploit it.
+
+In one completely new terminal, log in as user_1
+
+```bash
+ curl -X POST http://localhost:3000/api/auth/login \                       
+  -H "Content-Type: application/json" \
+  -d '{"username":"user_1","password":"password_1"}'
+```
+Response: {"sessionId":1}
+
+In a completely new terminal window, log in as user_2
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \                      
+  -H "Content-Type: application/json" \
+  -d '{"username":"user_2","password":"password_2"}'
+```
+Response: {"sessionId":2}
+
+Now, in the 1st terminal where the user_1 logged in, you can easily get the balance of the user_1 as: 
+
+```bash
+curl http://localhost:3000/api/user/balance \                     
+  -H "x-session-id: 1"
+```
+Response: {"balance":5000, "currency": "USD"}
+
+Now try to switch the sessionId to 2 ( which was granted to user2 )
+
+```
+curl http://localhost:3000/api/user/balance \                          
+  -H "x-session-id: 2"
+```
+Response: {"balance":10000, "currency": "EUR"}
+
+Our session auth layer is easily exploitable; if we get access to another sessionId, we can access other session resources. Currently, it was just seeing the balance API, what if it were transferring money or deleting an account? If that were the case, we could do the protected API activities by just guessing the sessionId.
+
+You might want to understand what the problem is with the un-signed session. Let me explain.
+
+### Vulnerability explained with an Example
+
+The problem is with the sessionId validation. It’s only to check whether you have an ID or not; it doesn’t validate whether that ID belongs to that user or not. It just wants an ID and gives access to resources belonging to it, no matter who provides the ID. 
+
+The best analogy can be given with a school example. You and your friends go to the school. The school provides you with an ID for various purposes. There is an attendance system on school gate. To perform the attendance, you need a valid ID card; without it, you cannot perform the attendance. You can perform the attendance by your ID card, that's normal, but suppose your friend is absent, you have the friends ID card, you just show your friend's ID card at the gate, and voilà, you can do your friend's attendance. The attendance device doesn’t check who is doing your attendance, whether it’s you or your friends; it just wants the card only, and it will do the attendance. It will not check whether you are the one legit to do the attendance, whether that ID card is only assigned to you; it doesn’t do this check. This is the vulnerability and issue we have, which we will solve in the next Step 3: Signed Sessions.
 
 ---
 
