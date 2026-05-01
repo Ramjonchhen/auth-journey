@@ -46,7 +46,7 @@ Balance data should be protected. Anyone can see it.
 ---
 
 ### Step 2: Session Auth (Unsigned) ← YOU ARE HERE
-**Commit:** `aa38d1d84`
+**Commit:** `c228f20464ecb5dc6d44b1a22e6c8692b7782f03`
 
 **What You'll Learn:**
 - How sessions work
