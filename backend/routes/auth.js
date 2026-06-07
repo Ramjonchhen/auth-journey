@@ -4,9 +4,11 @@ const authRoutes = express.Router();
 const serverSession = require("../shared/sessions");
 const users = require("../constants");
 
+const { createSessionSignature } = require("../lib/session/signature");
+
 authRoutes.post("/login", (req, res) => {
-    const username = req.body.username;
-    const password = req.body.password;
+    const username = req?.body?.username;
+    const password = req?.body?.password;
 
     if (!username || !password) {
         return res.status(400).json({ message: "Missing Required Parameters for Login !!!" })
@@ -30,7 +32,12 @@ authRoutes.post("/login", (req, res) => {
         username: user.username,
     };
 
-    return res.json({ sessionId });
+    // creating sessionSignature for the session
+    const sessionSignature = createSessionSignature(sessionId);
+    return res.json({
+        sessionId,
+        sessionSignature,
+    })
 });
 
 module.exports = authRoutes;
