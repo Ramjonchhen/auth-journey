@@ -45,7 +45,7 @@ Balance data should be protected. Anyone can see it.
 
 ---
 
-### Step 2: Session Auth (Unsigned) ← YOU ARE HERE
+### Step 2: Session Auth (Unsigned)
 **Commit:** `c228f20464ecb5dc6d44b1a22e6c8692b7782f03`
 
 **What You'll Learn:**
@@ -185,8 +185,8 @@ The best analogy can be given with a school example. You and your friends go to 
 
 ---
 
-### Step 3: Session Auth (Signed) - Coming Next
-**Objective:** Make sessionId unforgeable
+### Step 3: Session Auth (Signed) ← YOU ARE HERE
+**Objective:** Make sessionId unforgeable, patch the vulnerability of Step2: Unsigned Session
 
 **What You'll Learn:**
 - Cryptographic signing
@@ -194,14 +194,100 @@ The best analogy can be given with a school example. You and your friends go to 
 - HMAC and hashing
 
 **The Problem We're Solving:**
-Right now: sessionId is just a key
-After Step 3: sessionId will be signed, can't be forged
+In step2: Unsigned Sessions, we could easily get access to other session resources, by switching sessionId from one to another. In step3, we solve this issue, by switching from previous unsigned session to signed session through the use of HMAC signed server session.
+
+**Background Theory:**
+Necessary background theory & concepts required for step-3 are explained below:
+### Hashing: 
+Hashing is a process of using an algorithm, to convert data of any size to an fix length string of characters. The mathematical formula / algorithm used in the process is called hash function.
+
+Example: Consider an simple hashing algorithm smart hash, which generates 3 bit output, here are various input, output for this algorithm
+a. Empty Input ('') -> 011
+b. Large Input ( 'auth journey project is so exciting' ) -> 111
+c. Medium Size Input ( 'auth journey project' ) -> 101
+d. Simple Input ( 'abc' ) -> 010 
+e. Simple Input Again ( 'abc' -> 010 )
+
+From the above input and output example, we can distinguish the following properties of hashing:
+
+i. Fixed Size:
+The output of the hash function is always of fixed size, no matter the size of input, whether it be extremely large or small, the output is always of fixed size.
+
+ii. Deterministic
+For the exact same hash input, hash function will always generate the same hash output. Example can be seen with the has input of "abc' run twice.
+
+iii. One Way 
+Only hash output can be computed from hash input. We can't compute hash input back from the output produced. It's practically impossible to reverse the hash input from it's output.
+
+### HMAC (Hash-based Message Authentication Code)
+HMAC is a cryptographic methods, that takes an secret key and a hash function ( like SHA-256 ) to simultaneously verify both the data integrity (the message hasn't been altered in transit) and the authenticity (the message genuinely came from an expected source) of a message.
+
+To mitigate the vulnerability of un-signed session, HMAC can be used to provide unique identifier for a session which can't be tampered and prove authenticity. On successful session sign-in, when generating sessionId, we generate an unique session signature for that session, such that when accessing session resource, we require both sessionId and session signature. 
+
+For demonstration purposes: HMAC Secret Key = HMAC_secret & Hash Function: SHA-256
+
+For successful session sign with sesssionId: 1, we create it's session signature as: 
+HMAC_HASH_FUNCTION(sessionId + HMAC_secret ) =  SHA-256 ( 1 + SERVER-SECRET ) = HMAC_OUTPUT_FOR_SESSION_ID_1 ( arbitrary output for example )
+
+Now when we try to access session resources we have to send the session signature along with sessionId.
+
+we do the following check, HMAC_HASH_FUNCTION(sessionId + HMAC_secret ) = SHA-256( 1 + SERVER-SECRET ) is equal or not to: client_sent_signature 
+
+HMAC provide us the data integrity and authenticity by following way:
+i. The secret key to produce HMAC is present on secure place, thus only server can produce authentic session signature and even after we know sessionId we can't create session signature for it.
+ii. Due to the nature of hashing, we can't reverse back the input from hash output and reverse engineer the process.
+iii. Only valid session signature gets access to session resource, invalid session signature for a session will be immediately rejected.
 
 **Test You'll Run:**
-Try to modify sessionId → Signature won't match → 401 error
+Let's see signed session in action for the same last test setup which we did.
+
+Normal user1 logins with credentials: 
+
+```
+ curl -X POST http://localhost:3000/api/auth/login \                                            
+  -H "Content-Type: application/json" \
+  -d '{"username":"user_1","password":"password_1"}'
+```
+Response: {"sessionId":1,"sessionSignature":"41402ec10b059bbfed38159d826595d6a72d701e269534f939e2b3f1a0c5b876"}%
+
+User not only gets sessionId upon login but also gets sessionSignature now.
+
+Now to access session resource, providing only x-session-id is not enough.
+
+```
+ curl http://localhost:3000/api/user/balance -H "x-session-id: 1"
+```
+Response: {"error":"Missing Session Header"}%  
+
+We must also provide x-session-signature additional identity to access session resource, let us provide x-session-signature
+
+```
+curl http://localhost:3000/api/user/balance -H "x-session-id: 1" \                              
+ -H 'x-session-signature: 41402ec10b059bbfed38159d826595d6a72d701e269534f939e2b3f1a0c5b876'
+```
+Response: {"balance":5000,"currency":"USD"}%   
+
+Only after providing session signature they can access session resource, now let's move to our wanna be hacker user2, the user2 logins and get sessionId and sessionSignature
+
+```
+ curl -X POST http://localhost:3000/api/auth/login \                                           
+  -H "Content-Type: application/json" \
+  -d '{"username":"user_2","password":"password_2"}'
+```
+Response: {"sessionId":2,"sessionSignature":"13bdc85c78341b1187a639b7e1d19885d2fd177b2969adf3dbb83a892fd3c49e"}%
+
+User2 gets valid sessionId and sessionSignature, now our wanna be hacker tries to change sessionId to other valid sessionId: 1, with the valid session signature he got for sessionId: 2
+
+```
+curl http://localhost:3000/api/user/balance -H "x-session-id: 1" \                             
+-H 'x-session-signature: 13bdc85c78341b1187a639b7e1d19885d2fd177b2969adf3dbb83a892fd3c49e'
+```
+Response: {"error":"Not authenticated"}% 
+Now the user-2 can't simply change the sessionId and access the session resource, we need valid session signature, the signature he got is only valid for sessionId: 2, yes we've got the sessionSignature for sessionId: 1 on the docs for demo purpose, but in real life until the HMAC_SECRET is exposed, nobody can compute valid session signature, only the server can create it and verify easily. This is what signed session protect us with, in the same setup anybody could access another session resource, now we need identity verification for it. This is the patch to previous problem we had.
+
 
 **Why This Matters:**
-Even if someone guesses the sessionId format, they can't create a valid signature.
+Even if someone guesses the sessionId format, they can't create a valid signature. Only those with valid session signature and identity can access the session resource, compared to unsigned session with random linear sessionId, where anybody can access session resource just by switching to another sessionId.
 
 ---
 
@@ -260,7 +346,7 @@ Even if someone guesses the sessionId format, they can't create a valid signatur
 
 ✅ Step 1: Simple API (no auth)
 ✅ Step 2: Session auth (unsigned)
-🔄 Step 3: Session auth (signed) - Building now
+✅ Step 3: Session auth (signed)
 ⏭️  Step 4: HTTP-Only cookies + XSS testing
 ⏭️  Step 5: JWT tokens
 ⏭️  Step 6: Refresh tokens
