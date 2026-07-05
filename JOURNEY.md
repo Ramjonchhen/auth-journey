@@ -186,6 +186,8 @@ The best analogy can be given with a school example. You and your friends go to 
 ---
 
 ### Step 3: Session Auth (Signed) ← YOU ARE HERE
+**Quick Note:** In Step3, we need to use both linear sessionId and secure cryptographic sessionIds, go to backend/routes/auth.js to switch sessionId format accordingly 
+
 **Objective:** Make sessionId unforgeable, patch the vulnerability of Step2: Unsigned Session
 
 **What You'll Learn:**
@@ -289,6 +291,17 @@ Now the user-2 can't simply change the sessionId and access the session resource
 **Why This Matters:**
 Even if someone guesses the sessionId format, they can't create a valid signature. Only those with valid session signature and identity can access the session resource, compared to unsigned session with random linear sessionId, where anybody can access session resource just by switching to another sessionId.
 
+**Step3: Defense in Depth**
+In Step3, at the end we again switched back to cryptographic random secure IDs, to make the system as much as secure as possible. Let me explain, we already have added session signature and no one can access session resource without it, then why do we need to switch back to cryptographic ID from the linear sequential ID we have? I had the same question in my mind, and here is the answer to it, the concept is called defense in depth.
+
+Consider this, we have signed sessionId with linear sequential IDs like we have 1,2,3...., now session is secured with session signature, now think like this, what if the HMAC session signature secret gets leaked, now the attacker when it gets access to HMAC session secret, the attacker can easily compute HMAC session signature in seconds, as the next sessionId is easily predictable. 
+
+Random secure cryptographic adds extra layer of security to this. Even if the secret key for HMAC is exposed, for a large random secure sessionId, finding the next sessionId is practically impossible. Random Secure SessionID adds extra layer of security to signed session, signing prevents forgery, randomness prevents enumeration.
+
+Even if we don't use signed session, unsigned session which requires only sessionId, random secure sessionId can workout even without requiring signature, because finding the next sessionId is practically impossible and thus we can skip the signature process.
+
+Defense in Depth means securing system as much as possible, we explored various ways and identified the flaws ourselves to acknowledge why we need to secure system to depth and where does our design choices lead us to.
+
 ---
 
 ## 🔐 Security Concepts Learned at Each Step
@@ -339,6 +352,16 @@ Even if someone guesses the sessionId format, they can't create a valid signatur
 - Sessions need server-side storage
 - Randomness alone isn't security
 - We need cryptographic proof of authenticity
+
+### After Step 3 Completion
+**Questions to think about:**
+- What are the pros and cons of every method that we choose?
+- What if the secure session signature secret leaks out?
+- Can our secure solution still have vulnerabilities? 
+
+**Aha moments:**
+- We need a defense in depth, a secure system as much as possible
+- We have to think about every aspect to break our system and make it as secure as possible.
 
 ---
 
