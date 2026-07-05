@@ -186,6 +186,7 @@ The best analogy can be given with a school example. You and your friends go to 
 ---
 
 ### Step 3: Session Auth (Signed) ← YOU ARE HERE
+**Commit:** `5ec770c31f414eda42f382c16c1c55bba989a27c`
 **Quick Note:** In Step3, we need to use both linear sessionId and secure cryptographic sessionIds, go to backend/routes/auth.js to switch sessionId format accordingly 
 
 **Objective:** Make sessionId unforgeable, patch the vulnerability of Step2: Unsigned Session
