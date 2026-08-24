@@ -10,4 +10,10 @@ userRoutes.get("/balance", validateSession, (req, res) => {
     res.json({ balance: user.balance, currency: user.currency });
 })
 
+userRoutes.get("/me", validateSession, (req, res) => {
+    const reqUser = req.user;
+    let user = users.find((u) => u.username === reqUser.username);
+    res.json({ username: user.username, balance: user.balance, currency: user.currency });
+})
+
 module.exports = userRoutes;
