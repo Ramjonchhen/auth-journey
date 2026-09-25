@@ -1,11 +1,12 @@
 "use client";
+import UserNotes from "@/components/UserNotes";
 import { useAuth } from "@/providers/authProvider";
 
 export default function Dashboard() {
     const { userProfile } = useAuth();
 
     return (
-        <div className="p-10 flex items-center flex-col">
+        <div className="p-10 flex items-center flex-col gap-2">
             <h1 className="text-3xl font-bold mb-4">User Dashboard</h1>
             
             {userProfile ? (
@@ -16,6 +17,7 @@ export default function Dashboard() {
             ) : (
                 <p>No profile data available.</p>
             )}
+            <UserNotes />
         </div>
     );
 }

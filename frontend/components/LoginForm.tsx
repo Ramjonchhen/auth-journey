@@ -2,7 +2,7 @@
 
 import { api } from "@/config/axios";
 import { useAuth } from "@/providers/authProvider";
-import axios from 'axios';
+import { getErrorMessage } from "@/utils/getAxiosError";
 import { useState } from "react"
 
 interface ILoginResponse {
@@ -36,14 +36,8 @@ export default function LoginForm() {
             login({ id: resData.sessionId, signature: resData.sessionSignature })
             setIsLoginSuccessful(true);
         } catch (err) {
-            if (axios.isAxiosError(err)) {
-                const serverMessage = err.response?.data?.message;
-                const networkError = err.message;
-                setLoginError(serverMessage || networkError || "An error occurred during login");
-            } else {
-                const nativeMessage = err instanceof Error ? err.message : "Failed to perform login";
-                setLoginError(nativeMessage);
-            }
+            const errMsg = getErrorMessage(err, "Failed to Perform Login");
+            setLoginError(errMsg);
         } finally {
             setIsSubmitting(false);
         }
