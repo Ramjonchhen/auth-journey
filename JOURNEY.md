@@ -35,10 +35,10 @@ breaking them intentionally to understand vulnerabilities, then fixing them.
 - No authentication
 
 **Testing:**
-\`\`\`bash
+```bash
 curl http://localhost:3000/public
 curl http://localhost:3000/api/balance  # Returns data without auth!
-\`\`\`
+```
 
 **The Problem:**
 Balance data should be protected. Anyone can see it.
@@ -382,7 +382,7 @@ Defense in Depth means securing system as much as possible, we explored various 
 
 Use these commands to explore:
 
-\`\`\`bash
+```bash
 # See all commits
 git log --oneline
 
@@ -395,7 +395,7 @@ git diff step-1 step-2
 # Checkout an old step
 git checkout step-1  # See code from Step 1
 git checkout main    # Back to latest
-\`\`\`
+```
 
 ---
 

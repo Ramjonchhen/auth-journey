@@ -4,14 +4,14 @@ A step-by-step project building authentication from zero,
 breaking it intentionally, and fixing it.
 
 ## Current Step
-Step 2: Session-based authentication (unsigned, vulnerable)
+Step 3: Session-based authentication (HMAC-signed)
 
 ## How to Run
-\`\`\`bash
+```bash
 cd backend
 npm install
 npm run dev
-\`\`\`
+```
 
 ## Testing
 See JOURNEY.md for curl commands
